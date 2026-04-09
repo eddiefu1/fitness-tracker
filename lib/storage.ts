@@ -1,3 +1,5 @@
+import type { WhoopStoredData } from '@/lib/whoop/types'
+
 export type WorkoutCategory = 'strength' | 'cardio'
 
 /** A specific movement or cardio block within a session (e.g. name + sets/reps or duration). */
@@ -39,6 +41,7 @@ const KEYS = {
   workouts: 'fitness_workouts',
   food: 'fitness_food',
   weight: 'fitness_weight',
+  whoop: 'fitness_whoop',
 }
 
 function getItems<T>(key: string): T[] {
@@ -98,5 +101,25 @@ export const storage = {
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     )
     saveItems(KEYS.weight, merged)
+  },
+
+  getWhoopData: (): WhoopStoredData | null => {
+    if (typeof window === 'undefined') return null
+    try {
+      const raw = localStorage.getItem(KEYS.whoop)
+      return raw ? (JSON.parse(raw) as WhoopStoredData) : null
+    } catch {
+      return null
+    }
+  },
+
+  setWhoopData: (data: WhoopStoredData) => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem(KEYS.whoop, JSON.stringify(data))
+  },
+
+  clearWhoopData: () => {
+    if (typeof window === 'undefined') return
+    localStorage.removeItem(KEYS.whoop)
   },
 }

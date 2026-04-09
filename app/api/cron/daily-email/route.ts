@@ -26,7 +26,8 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const result = await sendDailyDigestEmail()
+  const test = request.nextUrl.searchParams.get('test') === '1'
+  const result = await sendDailyDigestEmail({ test })
   if (!result.ok) {
     return NextResponse.json(
       { ok: false, error: 'error' in result ? result.error : 'Unknown' },
@@ -34,5 +35,5 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  return NextResponse.json({ ok: true, sent: true })
+  return NextResponse.json({ ok: true, sent: true, test })
 }

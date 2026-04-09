@@ -2,11 +2,19 @@ import nodemailer from 'nodemailer'
 
 export type SendResult = { ok: true } | { ok: false; error: string }
 
+export type SendDailyDigestOptions = {
+  /** If true, subject and body indicate a manual test (not the scheduled cron). */
+  test?: boolean
+}
+
 /**
  * Sends a daily check-in email via Gmail SMTP (App Password).
  * Personalized stats require server-side data; this email links to the app where logs live.
  */
-export async function sendDailyDigestEmail(): Promise<SendResult> {
+export async function sendDailyDigestEmail(
+  options?: SendDailyDigestOptions
+): Promise<SendResult> {
+  const isTest = options?.test === true
   if (process.env.DAILY_EMAIL_ENABLED === 'false') {
     return { ok: false, error: 'Daily email disabled (DAILY_EMAIL_ENABLED=false)' }
   }
@@ -38,13 +46,20 @@ export async function sendDailyDigestEmail(): Promise<SendResult> {
     day: 'numeric',
   })
 
-  const subject = `FitTracker — Daily check-in (${when})`
+  const subject = isTest
+    ? `FitTracker — [TEST] Daily check-in (${when})`
+    : `FitTracker — Daily check-in (${when})`
+
+  const testBanner = isTest
+    ? `<p style="background:#fef3c7;border:1px solid #f59e0b;padding:12px 14px;border-radius:8px;color:#92400e;font-size:14px;"><strong>Test email</strong> — Sent manually (e.g. npm run email:test). The scheduled cron uses the same template without this banner.</p>`
+    : ''
 
   const html = `
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8" /></head>
 <body style="font-family: system-ui, sans-serif; color: #0f172a; max-width: 560px; line-height: 1.5;">
+  ${testBanner}
   <h1 style="color: #1e3a8a; font-size: 20px;">Daily check-in</h1>
   <p>Time for a quick look at your FitTracker.</p>
   <p><strong>Note:</strong> Your meals, weight, and workouts are stored in your browser on your device. Open the app to see if you&apos;re on track on the Dashboard and Weekly Summary.</p>
@@ -60,7 +75,9 @@ export async function sendDailyDigestEmail(): Promise<SendResult> {
 </html>`
 
   const text = [
-    `FitTracker daily check-in — ${when}`,
+    isTest
+      ? `[TEST] FitTracker daily check-in — ${when}\n(Manual test send — not scheduled cron.)`
+      : `FitTracker daily check-in — ${when}`,
     '',
     `Dashboard: ${appUrl}/dashboard`,
     `Weekly Summary: ${appUrl}/summary`,

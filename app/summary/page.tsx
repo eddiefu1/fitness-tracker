@@ -8,6 +8,8 @@ import {
   GOAL_WEIGHT_LOW_LB,
   START_WEIGHT_LB,
 } from '@/lib/weightLossSummary'
+import WeeklyCheckInCard from '@/components/WeeklyCheckInCard'
+import { isSundayMorningWindow } from '@/lib/weekBounds'
 
 export default function SummaryPage() {
   const [tick, setTick] = useState(0)
@@ -71,6 +73,8 @@ export default function SummaryPage() {
           Refresh from logs
         </button>
       </div>
+
+      <WeeklyCheckInCard emphasizeSunday={isSundayMorningWindow()} />
 
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 text-center">

@@ -1,5 +1,6 @@
 'use client'
 import { FoodEntry } from '@/lib/storage'
+import { localDateKey, localDateKeyNow, parseEntryDateMs } from '@/lib/dateHelpers'
 
 interface Props {
   entries: FoodEntry[]
@@ -7,8 +8,10 @@ interface Props {
 }
 
 export default function CalorieProgress({ entries, goal = 2000 }: Props) {
-  const today = new Date().toISOString().split('T')[0]
-  const todayEntries = entries.filter(e => e.date.startsWith(today))
+  const todayKey = localDateKeyNow()
+  const todayEntries = entries.filter(
+    (e) => localDateKey(parseEntryDateMs(e.date)) === todayKey
+  )
 
   const totals = todayEntries.reduce(
     (acc, e) => ({

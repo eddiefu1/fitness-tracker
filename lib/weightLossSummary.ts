@@ -4,6 +4,7 @@ import type {
   WeightEntry,
   WorkoutEntry,
 } from '@/lib/storage'
+import { localDateKey, parseEntryDateMs } from '@/lib/dateHelpers'
 import { inferWorkoutCategory } from '@/lib/workoutUtils'
 
 /** Starting weight (lb) for this plan—journey framed from here to the goal band. */
@@ -45,7 +46,7 @@ export function buildWeightLossSummary(
 
   const totalCal = week.food.reduce((s, e) => s + e.calories, 0)
   const daysWithFood = new Set(
-    week.food.map((e) => e.date.split('T')[0])
+    week.food.map((e) => localDateKey(parseEntryDateMs(e.date)))
   ).size
   const avgDailyCal =
     totalCal > 0 ? Math.round(totalCal / Math.max(daysWithFood, 1)) : 0

@@ -3,8 +3,11 @@ import { useState, useEffect } from 'react'
 import { storage, WorkoutEntry, FoodEntry, SleepEntry } from '@/lib/storage'
 import { inferWorkoutCategory } from '@/lib/workoutUtils'
 import { calculateWellnessScore } from '@/lib/wellness'
+import { localDateKey, parseEntryDateMs } from '@/lib/dateHelpers'
+import { isSundayMorningWindow } from '@/lib/weekBounds'
 import WellnessScore from '@/components/WellnessScore'
 import CalorieProgress from '@/components/CalorieProgress'
+import WeeklyCheckInCard from '@/components/WeeklyCheckInCard'
 
 export default function DashboardPage() {
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([])
@@ -19,8 +22,10 @@ export default function DashboardPage() {
 
   const score = calculateWellnessScore(workouts, food, sleep)
 
-  const today = new Date().toISOString().split('T')[0]
-  const todayWorkouts = workouts.filter(w => w.date.startsWith(today))
+  const todayWorkouts = workouts.filter(
+    (w) => localDateKey(parseEntryDateMs(w.date)) === localDateKey(Date.now())
+  )
+  const sundayHighlight = isSundayMorningWindow()
   const thisWeek = new Date()
   thisWeek.setDate(thisWeek.getDate() - 6)
   const weekWorkouts = workouts.filter(w => new Date(w.date) >= thisWeek)
@@ -32,7 +37,14 @@ export default function DashboardPage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white">Dashboard</h1>
         <p className="text-slate-400 mt-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        {sundayHighlight && (
+          <p className="text-indigo-300 text-sm mt-2">
+            Sunday check-in: review last week below and your full summary on the Weekly Summary page.
+          </p>
+        )}
       </div>
+
+      <WeeklyCheckInCard emphasizeSunday={sundayHighlight} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <WellnessScore score={score} />

@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto'
 import { NextResponse } from 'next/server'
+import { getOAuthPublicBaseUrl } from '@/lib/whoop/oauthBaseUrl'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,19 +15,17 @@ const WHOOP_SCOPES = [
   'read:body_measurement',
 ].join(' ')
 
-export async function GET() {
+export async function GET(request: Request) {
   const clientId = process.env.WHOOP_CLIENT_ID?.trim()
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim()
-  if (!clientId || !baseUrl) {
-    return NextResponse.json(
-      { error: 'Set WHOOP_CLIENT_ID and NEXT_PUBLIC_APP_URL in environment.' },
-      { status: 500 }
-    )
+  if (!clientId) {
+    return NextResponse.json({ error: 'Set WHOOP_CLIENT_ID in environment.' }, { status: 500 })
   }
+
+  const baseUrl = getOAuthPublicBaseUrl(request)
 
   /** WHOOP docs: state must be 8 characters when self-generated. */
   const state = randomBytes(4).toString('hex')
-  const redirectUri = `${baseUrl.replace(/\/$/, '')}/api/whoop/callback`
+  const redirectUri = `${baseUrl}/api/whoop/callback`
 
   const url = new URL('https://api.prod.whoop.com/oauth/oauth2/auth')
   url.searchParams.set('client_id', clientId)

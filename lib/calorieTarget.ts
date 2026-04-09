@@ -18,6 +18,20 @@ export function estimateMaintenanceKcal(weightLb: number): number {
   return Math.round(weightLb * KCAL_PER_LB_MAINTENANCE_MODERATE)
 }
 
+/** TDEE (total daily energy expenditure) — same model as maintenance here. */
+export function getTDEE(weightLb: number): number {
+  return estimateMaintenanceKcal(weightLb)
+}
+
+/**
+ * Dynamic calorie target at a known body weight (lb): TDEE minus deficit for ~1.5 lb/week.
+ */
+export function getDailyCalorieTargetForWeightLb(weightLb: number): number {
+  const maintenance = estimateMaintenanceKcal(weightLb)
+  const target = Math.round(maintenance - DAILY_DEFICIT_KCAL)
+  return Math.max(1200, target)
+}
+
 /**
  * Dynamic calorie target: maintenance at current (or reference) weight minus deficit for ~1.5 lb/week.
  */
@@ -26,7 +40,5 @@ export function getDailyCalorieTarget(latestWeightLb: number | null): number {
     latestWeightLb != null && latestWeightLb > 0
       ? latestWeightLb
       : PLAN_REFERENCE_WEIGHT_LB
-  const maintenance = estimateMaintenanceKcal(w)
-  const target = Math.round(maintenance - DAILY_DEFICIT_KCAL)
-  return Math.max(1200, target)
+  return getDailyCalorieTargetForWeightLb(w)
 }

@@ -8,6 +8,7 @@ import { isSundayMorningWindow } from '@/lib/weekBounds'
 import { getDailyCalorieTarget } from '@/lib/calorieTarget'
 import WellnessScore from '@/components/WellnessScore'
 import CalorieProgress from '@/components/CalorieProgress'
+import DashboardCalorieCharts from '@/components/DashboardCalorieCharts'
 import WeeklyCheckInCard from '@/components/WeeklyCheckInCard'
 import TargetWeightCard from '@/components/TargetWeightCard'
 
@@ -68,9 +69,13 @@ export default function DashboardPage() {
         <TargetWeightCard weights={weights} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
         <WellnessScore score={score} />
         <CalorieProgress entries={food} latestWeightLb={latestWeightLb} />
+      </div>
+
+      <div className="mb-6">
+        <DashboardCalorieCharts food={food} weights={weights} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">

@@ -7,8 +7,91 @@ export type SendDailyDigestOptions = {
   test?: boolean
 }
 
+function normalizeGmailAppPassword(raw: string | undefined): string {
+  if (!raw) return ''
+  return raw
+    .replace(/^\uFEFF/, '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\s+/g, '')
+}
+
+async function sendViaResend(params: {
+  to: string
+  subject: string
+  html: string
+  text: string
+}): Promise<SendResult> {
+  const key = process.env.RESEND_API_KEY?.trim()
+  if (!key) {
+    return { ok: false, error: 'RESEND_API_KEY not set' }
+  }
+  const from =
+    process.env.RESEND_FROM?.trim() ||
+    'FitTracker <onboarding@resend.dev>'
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: [params.to],
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+    }),
+  })
+
+  if (!res.ok) {
+    const errText = await res.text()
+    return {
+      ok: false,
+      error: `Resend HTTP ${res.status}: ${errText.slice(0, 500)}`,
+    }
+  }
+  return { ok: true }
+}
+
+async function sendViaGmail(params: {
+  user: string
+  pass: string
+  to: string
+  subject: string
+  html: string
+  text: string
+}): Promise<SendResult> {
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: { user: params.user, pass: params.pass },
+  })
+
+  try {
+    await transporter.sendMail({
+      from: `"FitTracker" <${params.user}>`,
+      to: params.to,
+      subject: params.subject,
+      text: params.text,
+      html: params.html,
+    })
+    return { ok: true }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Send failed'
+    console.error('sendDailyDigestEmail (Gmail):', e)
+    const hint =
+      msg.includes('534') || msg.includes('535')
+        ? ' Use a Google App Password (not your normal password), or set RESEND_API_KEY from https://resend.com for SMTP-free sending.'
+        : ''
+    return { ok: false, error: msg + hint }
+  }
+}
+
 /**
- * Sends a daily check-in email via Gmail SMTP (App Password).
+ * Sends a daily check-in email. Prefer **Resend** (`RESEND_API_KEY`) if set; else Gmail SMTP (App Password).
  * Personalized stats require server-side data; this email links to the app where logs live.
  */
 export async function sendDailyDigestEmail(
@@ -20,26 +103,32 @@ export async function sendDailyDigestEmail(
   }
 
   const user = process.env.GMAIL_USER?.trim()
-  /** App Passwords are 16 chars; Google often shows them with spaces between groups — strip all whitespace. */
-  const pass = process.env.GMAIL_APP_PASSWORD?.replace(/\s+/g, '')
+  const pass = normalizeGmailAppPassword(process.env.GMAIL_APP_PASSWORD)
   const to = (process.env.EMAIL_TO || user)?.trim()
+  const resendKey = process.env.RESEND_API_KEY?.trim()
 
-  if (!user || !pass || !to) {
+  const hasGmail = Boolean(user && pass && to)
+  const hasResend = Boolean(resendKey && to)
+
+  if (!to) {
     return {
       ok: false,
       error:
-        'Missing GMAIL_USER, GMAIL_APP_PASSWORD, or EMAIL_TO. See .env.example.',
+        'Set EMAIL_TO (or GMAIL_USER) for the recipient. See .env.example.',
+    }
+  }
+
+  if (!hasResend && !hasGmail) {
+    return {
+      ok: false,
+      error:
+        'Set RESEND_API_KEY (recommended) or GMAIL_USER + GMAIL_APP_PASSWORD. See .env.example.',
     }
   }
 
   const appUrl = (
     process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   ).replace(/\/$/, '')
-
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user, pass },
-  })
 
   const when = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -71,7 +160,7 @@ export async function sendDailyDigestEmail(
   </p>
   <p style="color:#64748b;font-size:14px;">Food journal: ${appUrl}/food · Workouts: ${appUrl}/workouts</p>
   <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;" />
-  <p style="color:#94a3b8;font-size:12px;">You get this because daily email is enabled on this deployment. Disable with DAILY_EMAIL_ENABLED=false.</p>
+  <p style="color:#94a3b8;font-size:12px;">Disable with DAILY_EMAIL_ENABLED=false.</p>
 </body>
 </html>`
 
@@ -86,18 +175,29 @@ export async function sendDailyDigestEmail(
     'Your data stays in your browser; open the app to review progress.',
   ].join('\n')
 
-  try {
-    await transporter.sendMail({
-      from: `"FitTracker" <${user}>`,
+  const payload = { to, subject, html, text }
+
+  if (resendKey) {
+    const r = await sendViaResend(payload)
+    if (r.ok) return r
+    if (!hasGmail) return r
+    console.warn('Resend failed, trying Gmail:', 'error' in r ? r.error : r)
+  }
+
+  if (hasGmail && user) {
+    return sendViaGmail({
+      user,
+      pass,
       to,
       subject,
-      text,
       html,
+      text,
     })
-    return { ok: true }
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Send failed'
-    console.error('sendDailyDigestEmail:', e)
-    return { ok: false, error: msg }
+  }
+
+  return {
+    ok: false,
+    error:
+      'Could not send email. Fix RESEND_API_KEY or Gmail App Password (see .env.example).',
   }
 }

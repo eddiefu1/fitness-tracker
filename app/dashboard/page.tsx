@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { storage, WorkoutEntry, FoodEntry, SleepEntry } from '@/lib/storage'
+import { storage, WorkoutEntry, FoodEntry, SleepEntry, WeightEntry } from '@/lib/storage'
 import { inferWorkoutCategory } from '@/lib/workoutUtils'
 import { calculateWellnessScore } from '@/lib/wellness'
 import { localDateKey, parseEntryDateMs } from '@/lib/dateHelpers'
@@ -8,16 +8,19 @@ import { isSundayMorningWindow } from '@/lib/weekBounds'
 import WellnessScore from '@/components/WellnessScore'
 import CalorieProgress from '@/components/CalorieProgress'
 import WeeklyCheckInCard from '@/components/WeeklyCheckInCard'
+import TargetWeightCard from '@/components/TargetWeightCard'
 
 export default function DashboardPage() {
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([])
   const [food, setFood] = useState<FoodEntry[]>([])
   const [sleep, setSleep] = useState<SleepEntry[]>([])
+  const [weights, setWeights] = useState<WeightEntry[]>([])
 
   useEffect(() => {
     setWorkouts(storage.getWorkouts())
     setFood(storage.getFoodEntries())
     setSleep(storage.getSleepEntries())
+    setWeights(storage.getWeightEntries())
   }, [])
 
   const score = calculateWellnessScore(workouts, food, sleep)
@@ -45,6 +48,10 @@ export default function DashboardPage() {
       </div>
 
       <WeeklyCheckInCard emphasizeSunday={sundayHighlight} />
+
+      <div className="mb-6">
+        <TargetWeightCard weights={weights} />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <WellnessScore score={score} />

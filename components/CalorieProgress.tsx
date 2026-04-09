@@ -1,13 +1,29 @@
 'use client'
 import { FoodEntry } from '@/lib/storage'
+import {
+  DAILY_DEFICIT_KCAL,
+  KCAL_PER_LB_MAINTENANCE_MODERATE,
+  TARGET_WEEKLY_LOSS_LB,
+  estimateMaintenanceKcal,
+  getDailyCalorieTarget,
+  PLAN_REFERENCE_WEIGHT_LB,
+} from '@/lib/calorieTarget'
 import { localDateKey, localDateKeyNow, parseEntryDateMs } from '@/lib/dateHelpers'
 
 interface Props {
   entries: FoodEntry[]
-  goal?: number
+  /** Latest body weight (lb); drives dynamic calorie target. */
+  latestWeightLb: number | null
 }
 
-export default function CalorieProgress({ entries, goal = 2000 }: Props) {
+export default function CalorieProgress({ entries, latestWeightLb }: Props) {
+  const goal = getDailyCalorieTarget(latestWeightLb)
+  const refW =
+    latestWeightLb != null && latestWeightLb > 0
+      ? latestWeightLb
+      : PLAN_REFERENCE_WEIGHT_LB
+  const maintenance = estimateMaintenanceKcal(refW)
+
   const todayKey = localDateKeyNow()
   const todayEntries = entries.filter(
     (e) => localDateKey(parseEntryDateMs(e.date)) === todayKey
@@ -28,7 +44,12 @@ export default function CalorieProgress({ entries, goal = 2000 }: Props) {
 
   return (
     <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
-      <h2 className="text-lg font-semibold text-slate-300 mb-4">Today&apos;s Calories</h2>
+      <h2 className="text-lg font-semibold text-slate-300 mb-1">Today&apos;s Calories</h2>
+      <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+        Target ~{goal} kcal/day for ~{TARGET_WEEKLY_LOSS_LB} lb/week: maintenance ~{maintenance} kcal
+        ({refW} lb × {KCAL_PER_LB_MAINTENANCE_MODERATE} kcal/lb, moderate activity) − ~
+        {Math.round(DAILY_DEFICIT_KCAL)} kcal deficit.
+      </p>
       <div className="flex justify-between items-end mb-2">
         <div>
           <span className="text-3xl font-bold text-green-400">{Math.round(totals.calories)}</span>

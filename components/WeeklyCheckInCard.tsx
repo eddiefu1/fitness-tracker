@@ -20,7 +20,6 @@ export default function WeeklyCheckInCard({ emphasizeSunday }: Props) {
       storage.getFoodEntries(),
       storage.getWeightEntries(),
       storage.getWorkouts(),
-      storage.getSleepEntries(),
       start,
       end
     )

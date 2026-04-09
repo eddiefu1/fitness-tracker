@@ -116,11 +116,14 @@ export default function TargetWeightCard({ weights }: Props) {
             </span>{' '}
             (first → latest weigh-in).
             {s.onTrackPace ? (
-              <span className="text-emerald-400"> · In a sustainable loss range.</span>
+              <span className="text-emerald-400">
+                {' '}
+                · Near your ~1.5 lb/week plan (~1–2 lb/week band).
+              </span>
             ) : (
               <span className="text-amber-300">
                 {' '}
-                · Outside the usual 0.5–1 lb/week band — adjust if needed.
+                · Outside the ~1–2 lb/week band around your plan — adjust if needed.
               </span>
             )}
           </p>
@@ -140,10 +143,10 @@ export default function TargetWeightCard({ weights }: Props) {
           {!s.onTrackPace &&
             s.latestLb > GOAL_WEIGHT_HIGH_LB &&
             s.ratePerWeek > 0 &&
-            s.ratePerWeek < 0.5 && (
+            s.ratePerWeek < 1 && (
               <p className="text-slate-400 text-sm mt-2">
-                Log weight regularly — when pace is 0.5–1 lb/week, a day countdown
-                to goal will show here.
+                Log weight regularly — when pace is ~1–2 lb/week, a day countdown to
+                goal will show here.
               </p>
             )}
         </div>

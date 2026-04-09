@@ -1,9 +1,5 @@
-import type {
-  FoodEntry,
-  SleepEntry,
-  WeightEntry,
-  WorkoutEntry,
-} from '@/lib/storage'
+import type { FoodEntry, WeightEntry, WorkoutEntry } from '@/lib/storage'
+import { TARGET_WEEKLY_LOSS_LB } from '@/lib/calorieTarget'
 import { inferWorkoutCategory } from '@/lib/workoutUtils'
 import { localDateKey } from '@/lib/dateHelpers'
 import {
@@ -12,8 +8,9 @@ import {
   START_WEIGHT_LB,
 } from '@/lib/weightLossSummary'
 
-const TARGET_WEEKLY_LOSS_LOW = 0.5
-const TARGET_WEEKLY_LOSS_HIGH = 1.0
+/** Pace band around the ~1.5 lb/week plan (lb/week). */
+const PACE_LOW = 1.0
+const PACE_HIGH = 2.0
 
 export type WeeklyCheckInResult = {
   weekLabel: string
@@ -36,7 +33,6 @@ export function buildWeeklyCheckIn(
   food: FoodEntry[],
   weights: WeightEntry[],
   workouts: WorkoutEntry[],
-  sleep: SleepEntry[],
   weekStart: Date,
   weekEnd: Date
 ): WeeklyCheckInResult {
@@ -45,9 +41,6 @@ export function buildWeeklyCheckIn(
   const weekFood = food.filter((e) => inRange(parseFoodTime(e), weekStart, weekEnd))
   const weekWeights = weights.filter((e) => inRange(Date.parse(e.date), weekStart, weekEnd))
   const weekWorkouts = workouts.filter((e) =>
-    inRange(Date.parse(e.date), weekStart, weekEnd)
-  )
-  const weekSleep = sleep.filter((e) =>
     inRange(Date.parse(e.date), weekStart, weekEnd)
   )
 
@@ -59,8 +52,9 @@ export function buildWeeklyCheckIn(
 
   const totalLbToGoalMid =
     START_WEIGHT_LB - (GOAL_WEIGHT_LOW_LB + GOAL_WEIGHT_HIGH_LB) / 2
-  const weeksAtPoint5 = Math.ceil(totalLbToGoalMid / TARGET_WEEKLY_LOSS_LOW)
-  const weeksAt1 = Math.ceil(totalLbToGoalMid / TARGET_WEEKLY_LOSS_HIGH)
+  const weeksAtTarget = Math.ceil(
+    totalLbToGoalMid / Math.max(TARGET_WEEKLY_LOSS_LB, 0.1)
+  )
 
   const sections: { title: string; content: string }[] = []
 
@@ -68,9 +62,8 @@ export function buildWeeklyCheckIn(
     title: 'Realistic timeframe (from 243 lb → 185–190 lb)',
     content: [
       `Rough total to lose to the middle of your goal band (~${((GOAL_WEIGHT_LOW_LB + GOAL_WEIGHT_HIGH_LB) / 2).toFixed(0)} lb): about ${totalLbToGoalMid.toFixed(0)} lb from your ${START_WEIGHT_LB} lb start.`,
-      `At a sustainable ${TARGET_WEEKLY_LOSS_LOW} lb/week: about ${weeksAtPoint5} weeks (~${Math.round(weeksAtPoint5 / 52 * 10) / 10} years).`,
-      `At ${TARGET_WEEKLY_LOSS_HIGH} lb/week: about ${weeksAt1} weeks (~${Math.round(weeksAt1 / 52 * 10) / 10} years).`,
-      `Real progress is rarely linear—plateaus and water shifts are normal. Use weekly averages, not single weigh-ins.`,
+      `Your app targets ~${TARGET_WEEKLY_LOSS_LB} lb/week (calorie goal updates with weight). At that pace: about ${weeksAtTarget} weeks (~${Math.round((weeksAtTarget / 52) * 10) / 10} years) if it stayed perfectly linear (it won’t—plateaus and water shifts are normal).`,
+      `Use weekly averages, not single weigh-ins.`,
     ].join('\n\n'),
   })
 
@@ -90,12 +83,12 @@ export function buildWeeklyCheckIn(
     if (ratePerWeek != null && ratePerWeek > 0) {
       const remaining = latestW - (GOAL_WEIGHT_LOW_LB + GOAL_WEIGHT_HIGH_LB) / 2
       const estWeeks = ratePerWeek > 0 ? remaining / ratePerWeek : null
-      if (ratePerWeek >= TARGET_WEEKLY_LOSS_LOW && ratePerWeek <= TARGET_WEEKLY_LOSS_HIGH + 0.3) {
-        onTrack = `Your recent trend (~${ratePerWeek.toFixed(2)} lb/week) is in a sustainable fat-loss range versus a common ${TARGET_WEEKLY_LOSS_LOW}–${TARGET_WEEKLY_LOSS_HIGH} lb/week target.`
-      } else if (ratePerWeek < TARGET_WEEKLY_LOSS_LOW) {
-        onTrack = `Your recent trend (~${ratePerWeek.toFixed(2)} lb/week) is slower than the ${TARGET_WEEKLY_LOSS_LOW}–${TARGET_WEEKLY_LOSS_HIGH} lb/week band—still fine if adherence is good; tighten consistency or confirm intake if stalled.`
+      if (ratePerWeek >= PACE_LOW && ratePerWeek <= PACE_HIGH) {
+        onTrack = `Your recent trend (~${ratePerWeek.toFixed(2)} lb/week) is in the ballpark of your ~${TARGET_WEEKLY_LOSS_LB} lb/week plan (${PACE_LOW}–${PACE_HIGH} lb/week band).`
+      } else if (ratePerWeek < PACE_LOW) {
+        onTrack = `Your recent trend (~${ratePerWeek.toFixed(2)} lb/week) is slower than your ~${TARGET_WEEKLY_LOSS_LB} lb/week target—still fine if adherence is good; tighten consistency or confirm intake if stalled.`
       } else {
-        onTrack = `Your recent trend (~${ratePerWeek.toFixed(2)} lb/week) is faster than typical—watch energy, strength, and hunger; very fast loss can cost muscle.`
+        onTrack = `Your recent trend (~${ratePerWeek.toFixed(2)} lb/week) is faster than the plan—watch energy, strength, and hunger; very fast loss can cost muscle.`
       }
       if (estWeeks != null && Number.isFinite(estWeeks) && estWeeks > 0 && estWeeks < 520) {
         onTrack += ` At this rough pace, about ${Math.round(estWeeks)} more weeks to near the goal band (estimate only).`
@@ -124,22 +117,11 @@ export function buildWeeklyCheckIn(
   const cardio = weekWorkouts.filter(
     (w) => inferWorkoutCategory(w) === 'cardio'
   ).length
-  const avgSleepQ =
-    weekSleep.length > 0
-      ? weekSleep.reduce((a, b) => a + b.quality, 0) / weekSleep.length
-      : 0
 
   const recap: string[] = [
     `Food: ${weekFood.length} entries, ~${Math.round(kcal)} kcal for the week (${daysWithFood} days with logs).`,
     `Training: ${weekWorkouts.length} sessions (${strength} strength · ${cardio} cardio).`,
   ]
-  if (weekSleep.length > 0) {
-    recap.push(
-      `Sleep: ${weekSleep.length} logs, avg quality ${avgSleepQ.toFixed(1)}/10.`
-    )
-  } else {
-    recap.push('Sleep: no entries this week.')
-  }
   if (weekWeights.length > 0) {
     const last = [...weekWeights].sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -156,11 +138,6 @@ export function buildWeeklyCheckIn(
   if (strength < 2) {
     suggestions.push(
       'Aim for at least two strength sessions next week to protect muscle while losing fat.'
-    )
-  }
-  if (weekSleep.length > 0 && avgSleepQ < 6.5) {
-    suggestions.push(
-      'Sleep quality was on the low side—earlier wind-down and consistent wake time often help adherence.'
     )
   }
   if (suggestions.length === 0) {

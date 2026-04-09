@@ -25,7 +25,6 @@ export default function SummaryPage() {
     return {
       workouts: storage.getWorkouts().filter((w) => new Date(w.date) >= wa),
       food: storage.getFoodEntries().filter((f) => new Date(f.date) >= wa),
-      sleep: storage.getSleepEntries().filter((s) => new Date(s.date) >= wa),
       weight: storage.getWeightEntries().filter((w) => new Date(w.date) >= wa),
     }
   }, [])
@@ -44,10 +43,6 @@ export default function SummaryPage() {
 
   const week = buildWeekSlice()
   const totalCal = week.food.reduce((s, e) => s + e.calories, 0)
-  const sleepQ =
-    week.sleep.length > 0
-      ? week.sleep.reduce((a, e) => a + e.quality, 0) / week.sleep.length
-      : 0
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -62,7 +57,7 @@ export default function SummaryPage() {
             <span className="text-slate-200 font-medium">
               {GOAL_WEIGHT_LOW_LB}–{GOAL_WEIGHT_HIGH_LB} lb
             </span>
-            — baselines and how your week lines up.
+            — food, training, weight, and ~1.5 lb/week calorie framing.
           </p>
         </div>
         <button
@@ -82,10 +77,8 @@ export default function SummaryPage() {
           <p className="text-slate-400 text-xs mt-1">Workouts (7d)</p>
         </div>
         <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 text-center">
-          <p className="text-2xl font-bold text-purple-400">
-            {week.sleep.length > 0 ? sleepQ.toFixed(1) : '—'}
-          </p>
-          <p className="text-slate-400 text-xs mt-1">Avg sleep quality</p>
+          <p className="text-2xl font-bold text-amber-400">{week.weight.length}</p>
+          <p className="text-slate-400 text-xs mt-1">Weight logs (7d)</p>
         </div>
         <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 text-center">
           <p className="text-2xl font-bold text-green-400">{Math.round(totalCal)}</p>

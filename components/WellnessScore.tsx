@@ -26,10 +26,9 @@ export default function WellnessScore({ score }: Props) {
   const scoreColor = score.total >= 80 ? '#22c55e' : score.total >= 50 ? '#eab308' : '#ef4444'
 
   const components = [
-    { label: 'Nutrition', value: score.nutrition, max: 25, icon: '🥗' },
-    { label: 'Exercise', value: score.exercise, max: 25, icon: '💪' },
-    { label: 'Sleep', value: score.sleep, max: 25, icon: '😴' },
-    { label: 'Consistency', value: score.consistency, max: 25, icon: '📅' },
+    { label: 'Nutrition', value: score.nutrition, max: 34, icon: '🥗' },
+    { label: 'Exercise', value: score.exercise, max: 33, icon: '💪' },
+    { label: 'Consistency', value: score.consistency, max: 33, icon: '📅' },
   ]
 
   return (
@@ -40,7 +39,9 @@ export default function WellnessScore({ score }: Props) {
           <svg className="w-36 h-36 -rotate-90" viewBox="0 0 120 120">
             <circle cx="60" cy="60" r="54" fill="none" stroke="#1e293b" strokeWidth="10" />
             <circle
-              cx="60" cy="60" r="54"
+              cx="60"
+              cy="60"
+              r="54"
               fill="none"
               stroke={scoreColor}
               strokeWidth="10"

@@ -1,9 +1,10 @@
-import type {
-  FoodEntry,
-  SleepEntry,
-  WeightEntry,
-  WorkoutEntry,
-} from '@/lib/storage'
+import type { FoodEntry, WeightEntry, WorkoutEntry } from '@/lib/storage'
+import {
+  DAILY_DEFICIT_KCAL,
+  TARGET_WEEKLY_LOSS_LB,
+  estimateMaintenanceKcal,
+  getDailyCalorieTarget,
+} from '@/lib/calorieTarget'
 import { localDateKey, parseEntryDateMs } from '@/lib/dateHelpers'
 import { inferWorkoutCategory } from '@/lib/workoutUtils'
 
@@ -22,13 +23,11 @@ export type WeightLossSummaryBlock = {
 type WeekSlice = {
   workouts: WorkoutEntry[]
   food: FoodEntry[]
-  sleep: SleepEntry[]
   weight: WeightEntry[]
 }
 
 /**
- * General, baseline-focused summary for moving toward ~185–190 lb,
- * combined with whatever the user logged this week (no LLM).
+ * General summary for ~185–190 lb goal, food/workouts/weight logs, and ~1.5 lb/week calorie framing.
  */
 export function buildWeightLossSummary(
   week: WeekSlice,
@@ -52,21 +51,14 @@ export function buildWeightLossSummary(
     totalCal > 0 ? Math.round(totalCal / Math.max(daysWithFood, 1)) : 0
   const avgDailyCalWeek = Math.round(totalCal / 7)
 
-  const sleepQs = week.sleep.map((s) => s.quality)
-  const avgSleepQ =
-    sleepQs.length > 0
-      ? sleepQs.reduce((a, b) => a + b, 0) / sleepQs.length
-      : 0
-
-  const sleepHrs = week.sleep.map((s) => s.hours)
-  const avgSleepH =
-    sleepHrs.length > 0
-      ? sleepHrs.reduce((a, b) => a + b, 0) / sleepHrs.length
-      : 0
+  const refW = latest?.weight ?? START_WEIGHT_LB
+  const targetKcal = getDailyCalorieTarget(latest?.weight ?? null)
+  const maint = estimateMaintenanceKcal(refW)
 
   const journeyIntro = [
     `Starting point for this plan: ${START_WEIGHT_LB} lb. Goal band: ${GOAL_WEIGHT_LOW_LB}–${GOAL_WEIGHT_HIGH_LB} lb.`,
-    `From ${START_WEIGHT_LB} lb, reaching the goal band means losing about ${lossToGoalHigh} lb (to ${GOAL_WEIGHT_HIGH_LB} lb) up to ${lossToGoalLow} lb (to ${GOAL_WEIGHT_LOW_LB} lb)—roughly ${lossToGoalHigh}–${lossToGoalLow} lb total. Pace depends on your calorie deficit, training, and consistency.`,
+    `From ${START_WEIGHT_LB} lb, reaching the goal band means losing about ${lossToGoalHigh} lb (to ${GOAL_WEIGHT_HIGH_LB} lb) up to ${lossToGoalLow} lb (to ${GOAL_WEIGHT_LOW_LB} lb)—roughly ${lossToGoalHigh}–${lossToGoalLow} lb total.`,
+    `Calorie target in the app uses ~${maint} kcal maintenance at ${refW} lb (moderate activity, ~15 kcal/lb) minus ~${Math.round(DAILY_DEFICIT_KCAL)} kcal/day for ~${TARGET_WEEKLY_LOSS_LB} lb/week → about ${targetKcal} kcal/day intake (not medical advice).`,
   ].join('\n\n')
 
   let goalLine = ''
@@ -104,10 +96,9 @@ export function buildWeightLossSummary(
   blocks.push({
     title: 'Baselines that support fat loss (general)',
     content: [
-      'Calories: A sustainable deficit is often about 300–500 kcal/day below maintenance (roughly ½–1 lb/week for many people). Your true maintenance depends on size, activity, and genetics—use this as a starting band, not a prescription.',
+      `Calories: This app targets ~${TARGET_WEEKLY_LOSS_LB} lb/week via ~${Math.round(DAILY_DEFICIT_KCAL)} kcal/day below estimated maintenance (weight × 15 kcal/lb for moderate activity). Adjust with a dietitian if needed.`,
       'Protein: Aim for roughly 0.7–1 g per lb body weight daily (or the high end of your comfort range) to protect muscle in a deficit.',
       'Training: 2 or more strength sessions per week plus regular walking and daily movement (NEAT).',
-      'Sleep and stress: About 7–9 hours when possible; poor sleep often raises appetite and makes adherence harder.',
       'Consistency: Logging food most days beats perfect logging once in a while.',
     ].join('\n\n'),
   })
@@ -128,13 +119,6 @@ export function buildWeightLossSummary(
     weekLines.push(
       `On days you logged food: average ~${avgDailyCal} kcal/day (rough—depends on how complete logging is).`
     )
-  }
-  if (week.sleep.length > 0) {
-    weekLines.push(
-      `Sleep: ${week.sleep.length} entries · avg quality ${avgSleepQ.toFixed(1)}/10 · avg duration ${avgSleepH.toFixed(1)} h`
-    )
-  } else {
-    weekLines.push('Sleep: no entries this week.')
   }
   const wk = week.weight
   if (wk.length > 0) {
@@ -169,23 +153,13 @@ export function buildWeightLossSummary(
     )
   } else if (week.workouts.length >= 4) {
     nudges.push(
-      'Solid training volume this week—watch recovery, sleep, and protein so the deficit does not erode performance.'
+      'Solid training volume this week—watch recovery and protein so the deficit does not erode performance.'
     )
   }
 
   if (strengthSessions < 2) {
     nudges.push(
       'Resistance training: a common baseline is 2+ strength sessions per week to preserve muscle in a deficit.'
-    )
-  }
-
-  if (week.sleep.length === 0) {
-    nudges.push(
-      'No sleep logs—tracking sleep (even roughly) helps link energy and hunger to recovery.'
-    )
-  } else if (avgSleepQ < 6 || avgSleepH < 6.5) {
-    nudges.push(
-      'Sleep looks short or low quality on average—improving sleep often makes a calorie deficit easier to stick to.'
     )
   }
 
@@ -197,7 +171,7 @@ export function buildWeightLossSummary(
 
   if (nudges.length === 0) {
     nudges.push(
-      'Keep the basics: moderate deficit, high protein, regular lifting, steps, and sleep. Adjust calories slowly based on weekly weight trend (~0.5–1 lb/week if that matches your plan).'
+      `Keep the basics: aim near your daily calorie target for ~${TARGET_WEEKLY_LOSS_LB} lb/week, high protein, regular lifting, and steps. Adjust slowly based on weekly weight trend.`
     )
   }
 

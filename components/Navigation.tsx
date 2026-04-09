@@ -7,7 +7,6 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
   { href: '/workouts', label: 'Workouts', icon: '💪' },
   { href: '/food', label: 'Food Journal', icon: '🥗' },
-  { href: '/sleep', label: 'Sleep', icon: '😴' },
   { href: '/weight', label: 'Weight', icon: '⚖️' },
   { href: '/summary', label: 'Weekly Summary', icon: '📝' },
 ]

@@ -1,10 +1,11 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { storage, WorkoutEntry, FoodEntry, SleepEntry, WeightEntry } from '@/lib/storage'
+import { useMemo, useState, useEffect } from 'react'
+import { storage, WorkoutEntry, FoodEntry, WeightEntry } from '@/lib/storage'
 import { inferWorkoutCategory } from '@/lib/workoutUtils'
 import { calculateWellnessScore } from '@/lib/wellness'
 import { localDateKey, parseEntryDateMs } from '@/lib/dateHelpers'
 import { isSundayMorningWindow } from '@/lib/weekBounds'
+import { getDailyCalorieTarget } from '@/lib/calorieTarget'
 import WellnessScore from '@/components/WellnessScore'
 import CalorieProgress from '@/components/CalorieProgress'
 import WeeklyCheckInCard from '@/components/WeeklyCheckInCard'
@@ -13,17 +14,24 @@ import TargetWeightCard from '@/components/TargetWeightCard'
 export default function DashboardPage() {
   const [workouts, setWorkouts] = useState<WorkoutEntry[]>([])
   const [food, setFood] = useState<FoodEntry[]>([])
-  const [sleep, setSleep] = useState<SleepEntry[]>([])
   const [weights, setWeights] = useState<WeightEntry[]>([])
 
   useEffect(() => {
     setWorkouts(storage.getWorkouts())
     setFood(storage.getFoodEntries())
-    setSleep(storage.getSleepEntries())
     setWeights(storage.getWeightEntries())
   }, [])
 
-  const score = calculateWellnessScore(workouts, food, sleep)
+  const latestWeightLb = useMemo(() => {
+    const sorted = [...weights].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    )
+    const w = sorted[0]?.weight
+    return w != null && w > 0 ? w : null
+  }, [weights])
+
+  const calorieGoal = getDailyCalorieTarget(latestWeightLb)
+  const score = calculateWellnessScore(workouts, food, calorieGoal)
 
   const todayWorkouts = workouts.filter(
     (w) => localDateKey(parseEntryDateMs(w.date)) === localDateKey(Date.now())
@@ -31,15 +39,22 @@ export default function DashboardPage() {
   const sundayHighlight = isSundayMorningWindow()
   const thisWeek = new Date()
   thisWeek.setDate(thisWeek.getDate() - 6)
-  const weekWorkouts = workouts.filter(w => new Date(w.date) >= thisWeek)
-  const weekStrength = weekWorkouts.filter(w => inferWorkoutCategory(w) === 'strength').length
-  const weekCardio = weekWorkouts.filter(w => inferWorkoutCategory(w) === 'cardio').length
+  const weekWorkouts = workouts.filter((w) => new Date(w.date) >= thisWeek)
+  const weekStrength = weekWorkouts.filter((w) => inferWorkoutCategory(w) === 'strength').length
+  const weekCardio = weekWorkouts.filter((w) => inferWorkoutCategory(w) === 'cardio').length
 
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-        <p className="text-slate-400 mt-1">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <p className="text-slate-400 mt-1">
+          {new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}
+        </p>
         {sundayHighlight && (
           <p className="text-indigo-300 text-sm mt-2">
             Sunday check-in: review last week below and your full summary on the Weekly Summary page.
@@ -55,10 +70,10 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <WellnessScore score={score} />
-        <CalorieProgress entries={food} />
+        <CalorieProgress entries={food} latestWeightLb={latestWeightLb} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-slate-300 font-medium">Workouts This Week</h3>
@@ -79,29 +94,26 @@ export default function DashboardPage() {
           </p>
           <p className="text-slate-400 text-sm mt-1">kcal from exercise</p>
         </div>
-        <div className="bg-slate-800 rounded-2xl p-5 border border-slate-700">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-slate-300 font-medium">Avg Sleep Quality</h3>
-            <span className="text-2xl">😴</span>
-          </div>
-          <p className="text-3xl font-bold text-purple-400">
-            {sleep.length > 0
-              ? (sleep.slice(0, 7).reduce((s, e) => s + e.quality, 0) / Math.min(sleep.length, 7)).toFixed(1)
-              : '—'}
-          </p>
-          <p className="text-slate-400 text-sm mt-1">out of 10</p>
-        </div>
       </div>
 
       {weekWorkouts.length > 0 && (
         <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700">
           <h2 className="text-lg font-semibold text-slate-300 mb-4">Recent Workouts</h2>
           <div className="space-y-2">
-            {weekWorkouts.slice(0, 5).map(w => (
-              <div key={w.id} className="flex items-center justify-between py-2 border-b border-slate-700 last:border-0">
+            {weekWorkouts.slice(0, 5).map((w) => (
+              <div
+                key={w.id}
+                className="flex items-center justify-between py-2 border-b border-slate-700 last:border-0"
+              >
                 <div>
                   <p className="text-white font-medium">
-                    <span className={`text-xs mr-2 px-1.5 py-0.5 rounded ${inferWorkoutCategory(w) === 'strength' ? 'bg-amber-600/30 text-amber-300' : 'bg-cyan-600/30 text-cyan-300'}`}>
+                    <span
+                      className={`text-xs mr-2 px-1.5 py-0.5 rounded ${
+                        inferWorkoutCategory(w) === 'strength'
+                          ? 'bg-amber-600/30 text-amber-300'
+                          : 'bg-cyan-600/30 text-cyan-300'
+                      }`}
+                    >
                       {inferWorkoutCategory(w) === 'strength' ? 'S' : 'C'}
                     </span>
                     {w.type}

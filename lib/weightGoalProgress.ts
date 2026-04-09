@@ -5,8 +5,9 @@ import {
   START_WEIGHT_LB,
 } from '@/lib/weightLossSummary'
 
-const TARGET_WEEKLY_LOSS_LOW = 0.5
-const TARGET_WEEKLY_LOSS_HIGH = 1.0
+/** Rough band around the ~1.5 lb/week plan for “on track” (lb/week). */
+const PACE_LOW = 1.0
+const PACE_HIGH = 2.0
 
 /** Midpoint of the goal band (lb). */
 export const GOAL_WEIGHT_MID_LB = (GOAL_WEIGHT_LOW_LB + GOAL_WEIGHT_HIGH_LB) / 2
@@ -100,8 +101,7 @@ export function computeWeightGoalDashboard(
 
     if (ratePerWeek != null && ratePerWeek > 0) {
       onTrackPace =
-        ratePerWeek >= TARGET_WEEKLY_LOSS_LOW &&
-        ratePerWeek <= TARGET_WEEKLY_LOSS_HIGH + 0.35
+        ratePerWeek >= PACE_LOW && ratePerWeek <= PACE_HIGH
       if (
         onTrackPace &&
         latestLb > GOAL_WEIGHT_HIGH_LB &&

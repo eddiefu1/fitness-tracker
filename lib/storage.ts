@@ -1,10 +1,21 @@
+export type WorkoutCategory = 'strength' | 'cardio'
+
+/** A specific movement or cardio block within a session (e.g. name + sets/reps or duration). */
+export interface ExerciseLine {
+  name: string
+  detail?: string
+}
+
 export interface WorkoutEntry {
-  id: string;
-  date: string;
-  type: string;
-  duration: number;
-  caloriesBurned: number;
-  notes: string;
+  id: string
+  date: string
+  /** Strength (weights) vs cardio; omitted on older logs → inferred from `type`. */
+  category?: WorkoutCategory
+  type: string
+  duration: number
+  caloriesBurned: number
+  notes: string
+  exercises?: ExerciseLine[]
 }
 
 export interface FoodEntry {

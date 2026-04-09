@@ -1,23 +1,13 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { storage, FoodEntry } from '@/lib/storage'
-
-interface OpenFoodResult {
-  product_name: string
-  nutriments: {
-    'energy-kcal_100g'?: number
-    'energy-kcal_serving'?: number
-    proteins_100g?: number
-    carbohydrates_100g?: number
-    fat_100g?: number
-  }
-  serving_size?: string
-}
+import type { FoodSearchItem } from '@/lib/foodSearchTypes'
 
 export default function FoodPage() {
   const [entries, setEntries] = useState<FoodEntry[]>([])
   const [search, setSearch] = useState('')
-  const [searchResults, setSearchResults] = useState<OpenFoodResult[]>([])
+  const [searchResults, setSearchResults] = useState<FoodSearchItem[]>([])
+  const [searchSource, setSearchSource] = useState<'fatsecret' | 'openfoodfacts' | null>(null)
   const [searching, setSearching] = useState(false)
   const [manualForm, setManualForm] = useState({
     name: '',
@@ -34,16 +24,22 @@ export default function FoodPage() {
   }, [])
 
   const doSearch = useCallback(async (query: string) => {
-    if (!query.trim()) { setSearchResults([]); return }
+    if (!query.trim()) {
+      setSearchResults([])
+      setSearchSource(null)
+      return
+    }
     setSearching(true)
     try {
       const res = await fetch(
-        `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=10`
+        `/api/food/search?q=${encodeURIComponent(query)}`
       )
       const data = await res.json()
-      setSearchResults((data.products || []).filter((p: OpenFoodResult) => p.product_name))
+      setSearchResults(data.results ?? [])
+      setSearchSource(data.source ?? null)
     } catch {
       setSearchResults([])
+      setSearchSource(null)
     } finally {
       setSearching(false)
     }
@@ -54,23 +50,22 @@ export default function FoodPage() {
     return () => clearTimeout(t)
   }, [search, doSearch])
 
-  const addFromSearch = (product: OpenFoodResult) => {
-    const n = product.nutriments
-    const cal = n['energy-kcal_100g'] ?? n['energy-kcal_serving'] ?? 0
+  const addFromSearch = (item: FoodSearchItem) => {
     const entry: FoodEntry = {
       id: crypto.randomUUID(),
       date: new Date().toISOString(),
-      name: product.product_name,
-      calories: Math.round(cal),
-      protein: Math.round(n.proteins_100g ?? 0),
-      carbs: Math.round(n.carbohydrates_100g ?? 0),
-      fat: Math.round(n.fat_100g ?? 0),
-      servingSize: product.serving_size,
+      name: item.name,
+      calories: item.calories,
+      protein: item.protein,
+      carbs: item.carbs,
+      fat: item.fat,
+      servingSize: item.servingSize,
     }
     storage.saveFoodEntry(entry)
     setEntries(storage.getFoodEntries())
     setSearch('')
     setSearchResults([])
+    setSearchSource(null)
   }
 
   const addManual = (e: React.FormEvent) => {
@@ -132,27 +127,36 @@ export default function FoodPage() {
             />
             {searching && <p className="text-slate-400 text-sm mb-2">Searching...</p>}
             {searchResults.length > 0 && (
-              <div className="space-y-2 max-h-72 overflow-y-auto">
-                {searchResults.map((r, i) => (
-                  <div key={i} className="bg-slate-700 rounded-lg p-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-white font-medium text-sm">{r.product_name}</p>
-                      <p className="text-slate-400 text-xs">
-                        {Math.round(r.nutriments['energy-kcal_100g'] ?? r.nutriments['energy-kcal_serving'] ?? 0)} kcal
-                        {r.serving_size ? ` | ${r.serving_size}` : ' per 100g'}
-                        {' '}· P: {Math.round(r.nutriments.proteins_100g ?? 0)}g
-                        · C: {Math.round(r.nutriments.carbohydrates_100g ?? 0)}g
-                        · F: {Math.round(r.nutriments.fat_100g ?? 0)}g
-                      </p>
+              <div>
+                {searchSource && (
+                  <p className="text-slate-500 text-xs mb-2">
+                    {searchSource === 'fatsecret' ? (
+                      <>Results via <span className="text-emerald-400">FatSecret</span></>
+                    ) : (
+                      <>Results via <span className="text-amber-400">Open Food Facts</span> (FatSecret unavailable)</>
+                    )}
+                  </p>
+                )}
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {searchResults.map((r) => (
+                    <div key={r.id} className="bg-slate-700 rounded-lg p-3 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-white font-medium text-sm truncate">{r.name}</p>
+                        <p className="text-slate-400 text-xs">
+                          {r.calories} kcal · {r.servingSize}
+                          {' '}· P: {r.protein}g · C: {r.carbs}g · F: {r.fat}g
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => addFromSearch(r)}
+                        className="shrink-0 bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-1 rounded-lg"
+                      >
+                        Add
+                      </button>
                     </div>
-                    <button
-                      onClick={() => addFromSearch(r)}
-                      className="ml-3 bg-green-600 hover:bg-green-700 text-white text-sm px-3 py-1 rounded-lg"
-                    >
-                      Add
-                    </button>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>

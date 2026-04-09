@@ -31,6 +31,8 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Push this repo to GitHub (or GitLab / Bitbucket).
+2. Import the repo in [Vercel](https://vercel.com/new): framework **Next.js**, build `npm run build`, output default.
+3. **FatSecret is optional.** If you do not set `FATSECRET_CLIENT_ID` / `FATSECRET_CLIENT_SECRET`, food search uses **Open Food Facts** only—no FatSecret keys are required on Vercel. To force that even when keys exist locally, set `DISABLE_FATSECRET=1` in the environment. The weekly summary is computed in the browser and needs no LLM env vars.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Or deploy from the CLI: run `npx vercel` in the project root, then `npx vercel --prod` for production.

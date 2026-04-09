@@ -25,8 +25,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
+# local env files (secrets — never commit)
+.env
 .env*.local
+
+# local Python LLM venv
+python-llm/venv/
+python-llm/.venv/
+python-llm/**/__pycache__/
+*.pyc
 
 # vercel
 .vercel

@@ -20,7 +20,8 @@ export async function sendDailyDigestEmail(
   }
 
   const user = process.env.GMAIL_USER?.trim()
-  const pass = process.env.GMAIL_APP_PASSWORD?.trim()
+  /** App Passwords are 16 chars; Google often shows them with spaces between groups — strip all whitespace. */
+  const pass = process.env.GMAIL_APP_PASSWORD?.replace(/\s+/g, '')
   const to = (process.env.EMAIL_TO || user)?.trim()
 
   if (!user || !pass || !to) {

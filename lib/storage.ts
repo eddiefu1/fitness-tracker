@@ -86,4 +86,17 @@ export const storage = {
     const items = getItems<WeightEntry>(KEYS.weight).filter((i) => i.id !== id)
     saveItems(KEYS.weight, items)
   },
+
+  /** Merge Withings imports by id; newest-first order preserved. */
+  mergeWeightEntriesFromWithings: (incoming: WeightEntry[]) => {
+    const existing = getItems<WeightEntry>(KEYS.weight)
+    const byId = new Map(existing.map((e) => [e.id, e]))
+    for (const n of incoming) {
+      if (!byId.has(n.id)) byId.set(n.id, n)
+    }
+    const merged = Array.from(byId.values()).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    )
+    saveItems(KEYS.weight, merged)
+  },
 }

@@ -8,6 +8,7 @@ const navItems = [
   { href: '/workouts', label: 'Workouts', icon: '💪' },
   { href: '/food', label: 'Food Journal', icon: '🥗' },
   { href: '/weight', label: 'Weight', icon: '⚖️' },
+  { href: '/steps', label: 'Steps', icon: '👟' },
   { href: '/whoop', label: 'WHOOP', icon: '⌚' },
   { href: '/summary', label: 'Weekly Summary', icon: '📝' },
 ]

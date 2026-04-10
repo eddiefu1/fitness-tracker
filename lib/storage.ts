@@ -37,11 +37,25 @@ export interface WeightEntry {
   weight: number
 }
 
+export interface StepEntry {
+  id: string
+  date: string
+  /** Total steps for that log (same calendar day sums in analytics). */
+  steps: number
+}
+
 const KEYS = {
   workouts: 'fitness_workouts',
   food: 'fitness_food',
   weight: 'fitness_weight',
+  steps: 'fitness_steps',
   whoop: 'fitness_whoop',
+  profile: 'fitness_profile',
+}
+
+export type UserProfile = {
+  /** Total height in inches (for BMI). */
+  heightInches?: number
 }
 
 function getItems<T>(key: string): T[] {
@@ -90,6 +104,16 @@ export const storage = {
     saveItems(KEYS.weight, items)
   },
 
+  getStepEntries: () => getItems<StepEntry>(KEYS.steps),
+  saveStepEntry: (entry: StepEntry) => {
+    const items = getItems<StepEntry>(KEYS.steps)
+    saveItems(KEYS.steps, [entry, ...items])
+  },
+  deleteStepEntry: (id: string) => {
+    const items = getItems<StepEntry>(KEYS.steps).filter((i) => i.id !== id)
+    saveItems(KEYS.steps, items)
+  },
+
   /** Merge Withings imports by id; newest-first order preserved. */
   mergeWeightEntriesFromWithings: (incoming: WeightEntry[]) => {
     const existing = getItems<WeightEntry>(KEYS.weight)
@@ -121,5 +145,27 @@ export const storage = {
   clearWhoopData: () => {
     if (typeof window === 'undefined') return
     localStorage.removeItem(KEYS.whoop)
+  },
+
+  getProfile: (): UserProfile => {
+    if (typeof window === 'undefined') return {}
+    try {
+      const raw = localStorage.getItem(KEYS.profile)
+      return raw ? (JSON.parse(raw) as UserProfile) : {}
+    } catch {
+      return {}
+    }
+  },
+
+  setProfile: (patch: Partial<UserProfile>) => {
+    if (typeof window === 'undefined') return
+    let cur: UserProfile = {}
+    try {
+      const raw = localStorage.getItem(KEYS.profile)
+      if (raw) cur = JSON.parse(raw) as UserProfile
+    } catch {
+      cur = {}
+    }
+    localStorage.setItem(KEYS.profile, JSON.stringify({ ...cur, ...patch }))
   },
 }

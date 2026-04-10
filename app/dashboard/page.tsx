@@ -4,6 +4,7 @@ import { storage, WorkoutEntry, FoodEntry, WeightEntry, StepEntry } from '@/lib/
 import { inferWorkoutCategory } from '@/lib/workoutUtils'
 import { calculateWellnessScore } from '@/lib/wellness'
 import { extractLatestWhoopMetrics } from '@/lib/whoopMetrics'
+import { computeDailyTargets } from '@/lib/dailyTargets'
 import { localDateKey, parseEntryDateMs } from '@/lib/dateHelpers'
 import { isSundayMorningWindow } from '@/lib/weekBounds'
 import { getDailyCalorieTarget } from '@/lib/calorieTarget'
@@ -14,6 +15,7 @@ import DashboardCalorieCharts from '@/components/DashboardCalorieCharts'
 import WeeklyCheckInCard from '@/components/WeeklyCheckInCard'
 import TargetWeightCard from '@/components/TargetWeightCard'
 import WhoopMetricsPanel from '@/components/WhoopMetricsPanel'
+import DailyTargetsPanel from '@/components/DailyTargetsPanel'
 import type { WhoopStoredData } from '@/lib/whoop/types'
 
 export default function DashboardPage() {
@@ -22,6 +24,7 @@ export default function DashboardPage() {
   const [weights, setWeights] = useState<WeightEntry[]>([])
   const [steps, setSteps] = useState<StepEntry[]>([])
   const [whoopData, setWhoopData] = useState<WhoopStoredData | null>(null)
+  const [heightInches, setHeightInches] = useState<number | null>(null)
 
   useEffect(() => {
     setWorkouts(storage.getWorkouts())
@@ -29,6 +32,8 @@ export default function DashboardPage() {
     setWeights(storage.getWeightEntries())
     setSteps(storage.getStepEntries())
     setWhoopData(storage.getWhoopData())
+    const h = storage.getProfile().heightInches
+    setHeightInches(typeof h === 'number' && h > 0 ? h : null)
   }, [])
 
   const latestWeightLb = useMemo(() => {
@@ -63,6 +68,11 @@ export default function DashboardPage() {
   const weekStrength = weekWorkouts.filter((w) => inferWorkoutCategory(w) === 'strength').length
   const weekCardio = weekWorkouts.filter((w) => inferWorkoutCategory(w) === 'cardio').length
 
+  const dailyTargets = useMemo(
+    () => computeDailyTargets(latestWeightLb, heightInches, whoopMetrics, weekStrength, weekCardio),
+    [latestWeightLb, heightInches, whoopMetrics, weekStrength, weekCardio]
+  )
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
@@ -92,6 +102,15 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
         <WellnessScore score={score} />
         <WhoopMetricsPanel metrics={whoopMetrics} />
+      </div>
+
+      {/* BMI + daily targets panel */}
+      <div className="mb-6">
+        <DailyTargetsPanel
+          targets={dailyTargets}
+          weekStrengthDone={weekStrength}
+          weekCardioDone={weekCardio}
+        />
       </div>
 
       {/* Calorie ring + chart */}

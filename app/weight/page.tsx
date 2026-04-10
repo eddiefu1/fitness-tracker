@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import { bmiFromLbIn, bmiCategoryLabel } from '@/lib/bmi'
 
 export default function WeightPage() {
   const [entries, setEntries] = useState<WeightEntry[]>([])
@@ -18,17 +19,25 @@ export default function WeightPage() {
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [origin, setOrigin] = useState('')
+  const [heightIn, setHeightIn] = useState('')
+  const [heightSaved, setHeightSaved] = useState(false)
 
   const refresh = useCallback(() => {
     setEntries(storage.getWeightEntries())
   }, [])
 
+  const loadProfile = useCallback(() => {
+    const h = storage.getProfile().heightInches
+    setHeightIn(h != null && h > 0 ? String(h) : '')
+  }, [])
+
   useEffect(() => {
     refresh()
+    loadProfile()
     if (typeof window !== 'undefined') {
       setOrigin(window.location.origin)
     }
-  }, [refresh])
+  }, [refresh, loadProfile])
 
   useEffect(() => {
     fetch('/api/withings/status', { credentials: 'include' })
@@ -98,6 +107,16 @@ export default function WeightPage() {
     setEntries(storage.getWeightEntries())
   }
 
+  const handleSaveHeight = (e: React.FormEvent) => {
+    e.preventDefault()
+    const n = Number(heightIn)
+    if (!Number.isFinite(n) || n <= 0 || n > 120) return
+    storage.setProfile({ heightInches: n })
+    setHeightSaved(true)
+    window.dispatchEvent(new Event('fitness-profile-updated'))
+    setTimeout(() => setHeightSaved(false), 2000)
+  }
+
   const chartData = [...entries]
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .map((e) => ({
@@ -111,6 +130,15 @@ export default function WeightPage() {
   const latest = entries[0]?.weight
   const earliest = entries.length > 1 ? entries[entries.length - 1]?.weight : null
   const change = latest && earliest ? (latest - earliest).toFixed(1) : null
+
+  const heightNum = Number(heightIn)
+  const profileBmi =
+    latest != null &&
+    Number.isFinite(heightNum) &&
+    heightNum > 0 &&
+    heightNum <= 120
+      ? bmiFromLbIn(latest, heightNum)
+      : null
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -203,6 +231,48 @@ export default function WeightPage() {
             Log
           </button>
         </form>
+      </div>
+
+      <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-6">
+        <h2 className="text-lg font-semibold text-slate-300 mb-2">Height (for BMI)</h2>
+        <p className="text-slate-400 text-sm mb-4">
+          Stored in this browser only. Used with your latest weight on the dashboard.
+        </p>
+        <form onSubmit={handleSaveHeight} className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[140px]">
+            <label htmlFor="height-in" className="block text-xs text-slate-500 mb-1">
+              Height (inches)
+            </label>
+            <input
+              id="height-in"
+              type="number"
+              min="1"
+              max="120"
+              step="0.1"
+              value={heightIn}
+              onChange={(e) => setHeightIn(e.target.value)}
+              placeholder="e.g. 70"
+              className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2.5 text-white focus:outline-none focus:border-orange-500"
+            />
+          </div>
+          <button
+            type="submit"
+            className="bg-slate-600 hover:bg-slate-500 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
+          >
+            Save
+          </button>
+        </form>
+        {profileBmi != null && (
+          <p className="text-slate-300 text-sm mt-3">
+            BMI with latest weight:{' '}
+            <span className="text-emerald-400 font-semibold tabular-nums">{profileBmi}</span>
+            {' · '}
+            <span className="text-slate-400">{bmiCategoryLabel(profileBmi)}</span>
+          </p>
+        )}
+        {heightSaved && (
+          <p className="text-emerald-400 text-sm mt-2">Saved.</p>
+        )}
       </div>
 
       {chartData.length >= 2 && (

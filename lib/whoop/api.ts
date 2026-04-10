@@ -1,4 +1,4 @@
-const API = 'https://api.prod.whoop.com/developer/v1'
+const API = 'https://api.prod.whoop.com/developer/v2'
 
 type Paginated<T> = { records?: T[]; next_token?: string }
 

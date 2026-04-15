@@ -127,6 +127,43 @@ export const storage = {
     saveItems(KEYS.weight, merged)
   },
 
+  /** Merge Apple Health (HealthKit) imports by id; newest-first order preserved. */
+  mergeStepEntriesFromAppleHealth: (incoming: StepEntry[]) => {
+    const existing = getItems<StepEntry>(KEYS.steps)
+    const byId = new Map(existing.map((e) => [e.id, e]))
+    for (const n of incoming) {
+      if (!byId.has(n.id)) byId.set(n.id, n)
+    }
+    const merged = Array.from(byId.values()).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    )
+    saveItems(KEYS.steps, merged)
+  },
+
+  mergeWeightEntriesFromAppleHealth: (incoming: WeightEntry[]) => {
+    const existing = getItems<WeightEntry>(KEYS.weight)
+    const byId = new Map(existing.map((e) => [e.id, e]))
+    for (const n of incoming) {
+      if (!byId.has(n.id)) byId.set(n.id, n)
+    }
+    const merged = Array.from(byId.values()).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    )
+    saveItems(KEYS.weight, merged)
+  },
+
+  mergeWorkoutsFromAppleHealth: (incoming: WorkoutEntry[]) => {
+    const existing = getItems<WorkoutEntry>(KEYS.workouts)
+    const byId = new Map(existing.map((e) => [e.id, e]))
+    for (const n of incoming) {
+      if (!byId.has(n.id)) byId.set(n.id, n)
+    }
+    const merged = Array.from(byId.values()).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    )
+    saveItems(KEYS.workouts, merged)
+  },
+
   getWhoopData: (): WhoopStoredData | null => {
     if (typeof window === 'undefined') return null
     try {

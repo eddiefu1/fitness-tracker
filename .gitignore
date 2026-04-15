@@ -28,6 +28,7 @@ yarn-error.log*
 # local env files (secrets — never commit)
 .env
 .env*.local
+.apple_health_tmp
 
 # local Python LLM venv
 python-llm/venv/
